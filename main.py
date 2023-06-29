@@ -1,7 +1,17 @@
-import sys, requests, time
+import sys
+import requests
+import time
 from google.transit import gtfs_realtime_pb2
 from dotenv import dotenv_values
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QHeaderView
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+    QHeaderView,
+)
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtCore import Qt, QTimer
 
@@ -12,46 +22,28 @@ REFRESH_RATE = int(env_vars.get('REFRESH_RATE'))
 MTA_API_KEY = env_vars.get('MTA_API_KEY')
 
 def get_train_data():
-    '''
-    This function will get the train data from the MTA API
-    
-    Returns:
-        train_dict (dict): A dictionary of train data
-    '''
     # Replace this with your actual API key
     response = requests.get(
         'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l',
         headers={'x-api-key': MTA_API_KEY},
         stream=True,
     )
-    # parse feed
     train_dict = {}
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.ParseFromString(response.content)
-    # start stack at 0
     stack = 0
-    # iterate through feed
     for entity in feed.entity:
-        # check if entity has trip_update data
         if entity.HasField('trip_update'):
             trip_update = entity.trip_update
-            # check if trip_update has stop_time_update data
             for stop_time_update in trip_update.stop_time_update:
-                # check if stop_time_update has stop_id data
                 if stop_time_update.stop_id == STOP_ID and stack < STACK_LIMIT:
-                    # convert to minutes from unix epoch
-                    print('Next arrival time:', (stop_time_update.arrival.time - time.time()) / 60, "minutes\n")
-                    # add data to dictionary
                     train_dict[stack] = {
                         'arrival_time': (stop_time_update.arrival.time - time.time()) / 60,
                         'arrival_delay': stop_time_update.arrival.delay,
                         'arrival_uncertainty': stop_time_update.arrival.uncertainty,
                         'schedule_relationship': stop_time_update.schedule_relationship
                     }
-                    # increment stack
                     stack += 1
-    
-    # Check if the stack is empty and add a default value
     try:
         train_dict[stack-1]
     except KeyError:
@@ -64,68 +56,41 @@ def get_train_data():
     return train_dict
 
 class MainWindow(QMainWindow):
-    '''
-    This class will create the main window for the application
-    
-    Args:
-        QMainWindow (QMainWindow): The main window for the application
-        
-    Returns:
-        None
-    '''
-
     def __init__(self):
-        '''
-        This function will initialize the main window
-        
-        Returns:
-            None
-        '''
-        # Initialize the main window
         super().__init__()
 
-        # Set the window title
         self.table = QTableWidget(self)
-
-        # Prevent initial cell selection
         self.table.setFocusPolicy(Qt.NoFocus)
-
-        # set the number of rows and columns  
         self.table.setRowCount(STACK_LIMIT)
         self.table.setColumnCount(3)
-
-        # set the table headers
         self.table.setHorizontalHeaderLabels(['Arrival Time', 'Delay', 'Certainty'])
-
-        # set the table properties
         self.table.setShowGrid(False)
         self.table.horizontalHeader().setHighlightSections(False)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        # set the fonts of the table
         headerFont = QFont()
-        headerFont.setPointSize(18)
+        headerFont.setPointSize(40)
         headerFont.setBold(True)
         self.table.horizontalHeader().setFont(headerFont)
         cellFont = QFont()
-        cellFont.setPointSize(16)
+        cellFont.setPointSize(40)
         self.table.setFont(cellFont)
-        
-        # set the window title
+
+        self.table.verticalHeader().setDefaultSectionSize(400)  # Set the default row height
+
         self.main_widget = QWidget()
         self.setCentralWidget(self.main_widget)
 
-        # set the layout of the window
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.table)
+        self.layout.setSpacing(100)  # Adjust the spacing between rows
+        self.layout.setContentsMargins(0, 0, 0, 0)  # Remove layout margins
         self.main_widget.setLayout(self.layout)
 
-        # Update the table
         self.update_table()
 
-        # Setting timer to update the table every 60 seconds
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_table)
         self.timer.start(REFRESH_RATE * 1000)
