@@ -1,0 +1,5 @@
+protobuf==4.23.3
+PyQt5==5.15.9
+PyQt5_sip==12.12.1
+python-dotenv==1.0.0
+Requests==2.31.0
