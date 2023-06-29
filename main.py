@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QTimer
 env_vars = dotenv_values()
 STACK_LIMIT = 2
 STOP_ID = env_vars.get('STOP_ID')
-REFRESH_RATE = env_vars.get('REFRESH_RATE')
+REFRESH_RATE = int(env_vars.get('REFRESH_RATE'))
 MTA_API_KEY = env_vars.get('MTA_API_KEY')
 
 def get_train_data():
